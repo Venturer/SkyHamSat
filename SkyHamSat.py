@@ -31,32 +31,25 @@ import math
 import sys
 import urllib.request
 from decimal import Decimal, localcontext, ROUND_DOWN
-from math import degrees
 from pprint import pprint
 
+# PyQt interface imports, Qt5
 import PyQt5.uic as uic
-import ephem
-import qtawesome as qta
 from PyQt5.QtCore import *
 from PyQt5.QtGui import *
-# PyQt interface imports, Qt5
 from PyQt5.QtWidgets import *
 
-from skyfield.api import Topos, load
+
+# Third party modules:
+import qtawesome as qta
+import numpy as np
+from skyfield.api import Topos, load, Angle
+
+# Project modules:
 
 # Graph
 from graphqt5 import Graph, Polar, reCreateGraph
 
-# Third party modules:
-import numpy as np
-
-# Project modules:
-
-
-myLocation = ephem.Observer()
-myLocation.lat = 51.38833333333
-myLocation.long = -0.75416666666
-myLocation.elevation = 100
 
 JULIAN_SEC = 1 / 86400
 
@@ -119,7 +112,7 @@ class MainApp(QMainWindow):
         self.checkBoxBeacon.stateChanged.connect(self.on_checkboxes_changed)
         self.checkBoxDownlink.stateChanged.connect(self.on_checkboxes_changed)
         self.checkBoxUplink.stateChanged.connect(self.on_checkboxes_changed)
-        # self.comboBoxMode.editTextChanged.connect(self.on_checkboxes_changed)
+        self.comboBoxMode.editTextChanged.connect(self.on_checkboxes_changed)
 
         # Create labels to contain the graphs
         self.labelGraph = QLabel()
@@ -152,12 +145,13 @@ class MainApp(QMainWindow):
         self.splitterH.moveSplitter(int(self.splitter_h_position), 2)
 
         # restore other settings
-        myLocation.lat = self.settings.value('mylatitude', 51.38833333333, type=float)
-        self.my_latitude.setText(repr(myLocation.lat))
-        myLocation.long = self.settings.value('mylongitude', -0.75416666666, type=float)
-        self.my_longitude.setText(repr(myLocation.long))
-        myLocation.elevation = self.settings.value('myelevation', 100.0, type=float)
-        self.my_elevation.setText(f'{myLocation.elevation:0.1f}')
+        lat = self.settings.value('mylatitude', '51.38833333333 N', type=str)
+        self.my_latitude.setText(lat)
+        long = self.settings.value('mylongitude', '0.75416666666 W', type=str)
+        self.my_longitude.setText(long)
+        elevation = self.settings.value('myelevation', 100.0, type=float)
+        self.my_elevation.setText(f'{elevation:0.1f}')
+        home = Topos(lat, long, elevation_m=elevation)
 
         # Create graphs with texts shown but no lines yet
         self.draw_graphs()
@@ -165,6 +159,7 @@ class MainApp(QMainWindow):
         self.set_up_satellite_data()
 
     @pyqtSlot(int)
+    @pyqtSlot(str)
     def on_checkboxes_changed(self, *args):
         """Actions when any of the checkboxes are changed."""
 
@@ -184,7 +179,7 @@ class MainApp(QMainWindow):
     def on_comboBoxMode_currentIndexChanged(self, index):
         """Actions when the index is changed."""
 
-        # self.fill_select_satellite_combo()
+        self.fill_select_satellite_combo()
         pass
 
     @pyqtSlot()
@@ -476,29 +471,8 @@ class MainApp(QMainWindow):
                     transit_list.append(pass_info)
                     pass_info = [0, 0, 0, sat]
 
-        transit_list.sort()
-
-        return transit_list
-
-    def transit_list_sorted_by_next_pass(self):
-        """Return a list from self.satellites, sorted by the next pass rise time.
-            """
-        transit_list = []
-
-        for v in self.satellites_filtered_by_check_boxes():
-            sat = v['Satellite']
-            try:
-                # rise_time, azimuth_at_rise, transit_time,
-                # maximum_elevation_at_transit, setting_time,
-                # azimuth_at_setting = obs.next_pass(iss)
-                nextPass = list(myLocation.next_pass(sat))
-
-                if nextPass[0] > nextPass[4]:
-                    nextPass[0] = ephem.Date(ephem.now())
-            except ValueError:
-                pass
-            else:
-                transit_list.append((nextPass[0], sat.name, sat, nextPass))
+            if not pass_list:
+                transit_list.append([0, 0, 0, sat])
 
         transit_list.sort()
 
@@ -669,9 +643,11 @@ class MainApp(QMainWindow):
     def get_alt_azimuth(self, calc_time, satellite_name):
 
 
-        # self.by_number = {sat.model.satnum: sat for sat in self.satellite_body_objects}
-        satellite_number = self.satellites[satellite_name]['Number']
-        satellite = self.by_number[int(satellite_number)]
+        try:
+            satellite_number = self.satellites[satellite_name]['Number']
+            satellite = self.by_number[int(satellite_number)]
+        except ValueError:
+            return Angle(degrees=0), Angle(degrees=0), 0
 
         difference = satellite - home
         topocentric = difference.at(ts.tt_jd(calc_time))
@@ -690,24 +666,25 @@ class MainApp(QMainWindow):
         event_list = []
 
         now_ts = ts.now()
+        try:
+            satellite_number = self.satellites[satellite_name]['Number']
+            satellite = self.by_number[int(satellite_number)]
 
-        # self.by_number = {sat.model.satnum: sat for sat in self.satellite_body_objects}
-        satellite_number = self.satellites[satellite_name]['Number']
-        satellite = self.by_number[int(satellite_number)]
+            end_ts = ts.tt_jd(now_ts.tt + 1)
 
-        end_ts = ts.tt_jd(now_ts.tt + 1)
+            event_times_ts, events = satellite.find_events(home, now_ts, end_ts, altitude_degrees=0.0)
 
-        event_times_ts, events = satellite.find_events(home, now_ts, end_ts, altitude_degrees=0.0)
+            passes = 0
 
-        passes = 0
-
-        for ti, event in zip(event_times_ts, events):
-            if passes >= number_of_passes:
-                break
-            event_name = ('rise', 'transit', 'set')[event]
-            event_list.append((ti, event_name))
-            if event_name == 'set':
-                passes += 1
+            for ti, event in zip(event_times_ts, events):
+                if passes >= number_of_passes:
+                    break
+                event_name = ('rise', 'transit', 'set')[event]
+                event_list.append((ti, event_name))
+                if event_name == 'set':
+                    passes += 1
+        except ValueError:
+            event_list = []
 
         return event_list
 
@@ -719,6 +696,9 @@ class MainApp(QMainWindow):
             return  # Will be None if combobox is clear (at start up)
 
         pass_list = self.get_next_passes(satellite_name, self.spinBoxNextPasses.value())
+
+        if not pass_list:
+            return
 
         plot_colours = ('firebrick', 'sandybrown', 'olive', 'darkgreen', 'purple', 'blue')
 
