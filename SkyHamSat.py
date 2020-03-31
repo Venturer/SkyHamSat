@@ -168,7 +168,8 @@ class MainApp(QMainWindow):
     def on_checkboxes_changed(self, *args):
         """Actions when any of the checkboxes are changed."""
 
-        self.filtered_satellites = self.satellites_filtered_by_check_boxes()
+        # self.filtered_satellites = self.satellites_filtered_by_check_boxes()
+        # self.filtered_satellites = [s for s in self.satellites_filtered_by_check_boxes()]
 
         self.fill_select_satellite_combo()
         self.fill_combo_box_with_list_of_modes()
@@ -460,8 +461,7 @@ class MainApp(QMainWindow):
 
         transit_list = []
 
-        for v in self.filtered_satellites:
-            # for v in self.satellites_filtered_by_check_boxes():
+        for v in self.satellites_filtered_by_check_boxes():
             sat = v['Satellite']
             pass_list = self.get_next_passes(sat, self.spinBoxNextPasses.value())
             pass_info = [None, None, None, sat]
@@ -474,8 +474,7 @@ class MainApp(QMainWindow):
             """
         transit_list = []
 
-        for v in self.filtered_satellites:
-        # for v in self.satellites_filtered_by_check_boxes():
+        for v in self.satellites_filtered_by_check_boxes():
             sat = v['Satellite']
             try:
                 # rise_time, azimuth_at_rise, transit_time,
@@ -500,7 +499,7 @@ class MainApp(QMainWindow):
         satellites = []
         self.comboBoxSelectSatelllite.clear()
 
-        for v in self.filtered_satellites:
+        for v in self.satellites_filtered_by_check_boxes():
             satellite = v['Satellite']
             try:
                 # r = myLocation.next_pass(satellite)
@@ -520,8 +519,8 @@ class MainApp(QMainWindow):
         # Get the satelliteBodyObjects from the TLEs file
         stations_url = 'http://celestrak.com/NORAD/elements/amateur.txt'
         self.satellite_body_objects = load.tle_file(stations_url)
-        self.by_number = {sat.model.satnum: sat for sat in self.satellite_body_objects}
 
+        self.by_number = {sat.model.satnum : sat for sat in self.satellite_body_objects}
 
         # Get the satellite data from the json file
         with open('satslist.json', 'r') as f:
@@ -536,8 +535,6 @@ class MainApp(QMainWindow):
         # in satellite_body_objects, i.e. where we have both TLEs and satellite_name info
         self.satellites = {s: self.satellite_data[s] for s in self.satellite_data
                            if self.satellite_data[s]['Number'] in str(numbers.keys())}
-
-        self.filtered_satellites = self.satellites_filtered_by_check_boxes()
 
         # Fill the modes and Select Satellite combo boxes
         self.fill_combo_box_with_list_of_modes()
@@ -572,7 +569,7 @@ class MainApp(QMainWindow):
         if selected_satellite is None:
             return  # Will be None if combo box is cleared
 
-        for v in self.filtered_satellites:
+        for v in self.satellites_filtered_by_check_boxes():
             sat = v['Satellite']
             calc_time = ts.now().tt
             alt, az, slant_velocity = self.get_alt_azimuth(calc_time, sat)
@@ -859,7 +856,7 @@ class MainApp(QMainWindow):
 
         self.display_on_upcoming_passes(f'Time Zone: {"Local" if LOCALTIME else "UTC"}')
         # by_number = {sat.model.satnum: sat for sat in self.satellite_body_objects}
-        for v in self.filtered_satellites:
+        for v in self.satellites_filtered_by_check_boxes():
             satellite = self.by_number[int(v['Number'])]
             ts = load.timescale()
             now = ts.now()
