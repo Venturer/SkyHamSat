@@ -64,6 +64,7 @@ home = Topos('51.38833333333 N', '0.75416666666 W', elevation_m=100)
 
 LOCALTIME = False
 
+ts = load.timescale()
 
 class MainApp(QMainWindow):
     """Main Qt5 Window."""
@@ -459,15 +460,13 @@ class MainApp(QMainWindow):
         """:returns: [rise time: Julian, transit time: Julian, set time: Julian,
                         satellite name: string]
             """
-
-        ts = load.timescale()
-
         transit_list = []
 
         for v in self.satellites_filtered_by_check_boxes():
             sat = v['Satellite']
             pass_list = self.get_next_passes(sat, self.spinBoxNextPasses.value())
-            pass_info = [None, None, None, sat]
+
+            pass_info = [0, 0, 0, sat]
             for pass_event in pass_list:
                 if pass_event[1] == 'rise':
                     pass_info[0] = pass_event[0].tt
@@ -476,6 +475,7 @@ class MainApp(QMainWindow):
                 elif pass_event[1] == 'set':
                     pass_info[2] = pass_event[0].tt
                     transit_list.append(pass_info)
+                    pass_info = [0, 0, 0, sat]
 
         transit_list.sort()
 
@@ -572,7 +572,6 @@ class MainApp(QMainWindow):
 
         #self.draw_upcoming_passes()
 
-        ts = load.timescale()
         up_positions = []
         dynamic_lines = []
 
@@ -641,7 +640,6 @@ class MainApp(QMainWindow):
             """
 
         pass_line = []
-        ts = load.timescale()
 
         point_number = 0
 
@@ -671,7 +669,6 @@ class MainApp(QMainWindow):
 
     def get_alt_azimuth(self, calc_time, satellite_name):
 
-        ts = load.timescale()
 
         # self.by_number = {sat.model.satnum: sat for sat in self.satellite_body_objects}
         satellite_number = self.satellites[satellite_name]['Number']
@@ -693,7 +690,6 @@ class MainApp(QMainWindow):
 
         event_list = []
 
-        ts = load.timescale()
         now_ts = ts.now()
 
         # self.by_number = {sat.model.satnum: sat for sat in self.satellite_body_objects}
@@ -719,22 +715,16 @@ class MainApp(QMainWindow):
     def draw_next_passes_for_selected_satellite(self):
         """Draws the next passes for the selected satellite on the polar graphs."""
 
-        ts = load.timescale()
-
-        sat = self.comboBoxSelectSatelllite.itemData(self.comboBoxSelectSatelllite.currentIndex())
-        if sat is None:
+        satellite_name = self.comboBoxSelectSatelllite.itemData(self.comboBoxSelectSatelllite.currentIndex())
+        if satellite_name is None:
             return  # Will be None if combobox is clear (at start up)
 
-        pass_list = self.get_next_passes(sat, self.spinBoxNextPasses.value())
+        pass_list = self.get_next_passes(satellite_name, self.spinBoxNextPasses.value())
 
         plot_colours = ('firebrick', 'sandybrown', 'olive', 'darkgreen', 'purple', 'blue')
 
         self.lines = []
         self.next_pass_polar_lines = []
-
-        # by_number = {sat.model.satnum: sat for sat in self.satellite_body_objects}
-        satellite_number = self.satellites[sat]['Number']
-        satellite = self.by_number[int(satellite_number)]
 
         if pass_list[0][1] != 'rise':
             # create rise time as now
@@ -748,11 +738,14 @@ class MainApp(QMainWindow):
                 rise_ts = pass_event[0]
             elif pass_event[1] == 'set':
                 set_ts = pass_event[0]
+
                 if p == 0:
-                    self.lines.append(self.create_pass_line(sat, rise_ts, set_ts, 30, plot_colours[0], 4)[:])
+                    self.lines.append(self.create_pass_line(
+                        satellite_name, rise_ts, set_ts, 30, plot_colours[0], 4)[:])
+
                 self.next_pass_polar_lines.append(
                     self.create_pass_line(
-                        sat, rise_ts, set_ts, 30, plot_colours[p % len(plot_colours)], 4)[:])
+                        satellite_name, rise_ts, set_ts, 30, plot_colours[p % len(plot_colours)], 4)[:])
                 p += 1
 
         self.current_pass_graph.draw(*self.lines)
@@ -771,49 +764,54 @@ class MainApp(QMainWindow):
         if satellite_name is None:
             return  # Will be None if combo box is cleared
 
-        self.display_on_selected_satellite_passes(satellite_name, colour='purple')
-        self.display_on_selected_satellite_passes()  # Blank line
+        self.display_on_selected_satellite_passes(f'Time Zone: {"Local" if LOCALTIME else "UTC"}')
 
-        observer = myLocation.copy()
+        self.display_on_selected_satellite_passes(f'Next 10 passes for satellite: {satellite_name}', colour='purple')
+        self.display_on_selected_satellite_passes()
 
-        for p in range(self.spinBoxNextPasses.value()):
-            try:
-                # rise_time, azimuth_at_rise, transit_time,
-                # maximum_elevation_at_transit, setting_time,
-                # azimuth_at_setting = obs.next_pass(iss)
-                tr, azr, tt, altt, ts, azs = observer.next_pass(satellite_name)
-                if tr > ts:
-                    tr = ephem.Date(ephem.now())
-                # TODO: change header to use eDate
-                self.display_on_selected_satellite_passes(f'Time Zone: {"Local" if LOCALTIME else "UTC"}')
-                self.display_on_selected_satellite_passes(f'Rise:   {tr} at azimuth:  {degrees(azr):5.1f}°')
-                self.display_on_selected_satellite_passes(f'Maximum:{tt} at altitude: {degrees(altt):5.1f}°')
-                self.display_on_selected_satellite_passes(f'Sets:   {ts} at azimuth:  {degrees(azs):5.1f}°')
-                self.display_on_selected_satellite_passes()
-                self.display_on_selected_satellite_passes(
-                    """Date/Time           Alt° Azim° 	 Lat°  Long°  Elev (km)""")
-                self.display_on_selected_satellite_passes(
-                    """========================================================""")
+        transit_list = []
 
-                while tr < ts:
-                    observer.date = tr
-                    satellite_name.compute(observer)
-                    self.display_on_selected_satellite_passes(f"%s | %4.1f %5.1f | %4.1f %+6.1f | %5.1f" %
-                                                              (f'{eDate(tr):%y/%m/%d %X}',
-                                                               math.degrees(satellite_name.alt),
-                                                               math.degrees(satellite_name.az),
-                                                               math.degrees(satellite_name.sublat),
-                                                               math.degrees(satellite_name.sublong),
-                                                               satellite_name.elevation / 1000.))
-                    tr = ephem.Date(tr + 20.0 * ephem.second)
-                self.display_on_selected_satellite_passes()
+        pass_list = self.get_next_passes(satellite_name, 10)
 
-                observer.date = tr + ephem.minute
+        pass_info = [0, 0, 0, satellite_name]
+        for pass_event in pass_list:
+            if pass_event[1] == 'rise':
+                pass_info[0] = pass_event[0].tt
+            elif pass_event[1] == 'transit':
+                pass_info[1] = pass_event[0].tt
+            elif pass_event[1] == 'set':
+                pass_info[2] = pass_event[0].tt
+                transit_list.append(pass_info)
+                pass_info = [0, 0, 0, satellite_name]
 
-                self.scroll_selected_satellite_passes_display(0)
+        transit_list.sort()
 
-            except ValueError as e:
-                self.display_on_selected_satellite_passes(e, colour='red')
+        for transit in transit_list:
+            if transit[0]:
+                rise_time = ts.tt_jd(transit[0]).utc_iso(' ')
+                alt, az, velocity = self.get_alt_azimuth(transit[0], transit[3])
+
+                self.display_on_selected_satellite_passes(f'Rise    : {rise_time} az: {az.degrees:5.1f}°', colour='darkgreen')
+
+            if transit[1]:
+                transit_time = ts.tt_jd(transit[1]).utc_iso(' ')
+                alt, az, velocity = self.get_alt_azimuth(transit[1], transit[3])
+
+                self.display_on_selected_satellite_passes(f'Transit : {transit_time} az: {az.degrees:5.1f}° alt: {alt.degrees:4.1f}°', colour='darkgreen')
+
+            if transit[2]:
+                set_time = ts.tt_jd(transit[2]).utc_iso(' ')
+                alt, az, velocity = self.get_alt_azimuth(transit[2], transit[3])
+
+                self.display_on_selected_satellite_passes(f'Set     : {set_time} az: {az.degrees:5.1f}°', colour='darkgreen')
+
+            self.display_on_selected_satellite_passes()
+
+        self.display_on_selected_satellite_passes('Listing finished!', colour='red')
+
+        self.scroll_selected_satellite_passes_display(0)
+
+
 
     def load_tles(self):
         """Get all the amateur satellite TLEs from celestrak and
@@ -828,80 +826,37 @@ class MainApp(QMainWindow):
                                 'TLEs Downloaded!',
                                 QMessageBox.Ok)
 
-    @pyqtSlot()
-    def draw_upcoming_passes(self):
-        """Draws the next pass for the selected satellites
-            on the upcoming passes graph."""
-
-        transit_list = self.transit_list_sorted_by_next_pass()
-
-        self.next_pass_lines = []
-
-        for t, name, sat, r in transit_list:
-
-            now = ephem.now()
-
-            rt, razi, tt, televation, st, sazi = r
-            rise_delta = rt - now
-            set_delta = st - now
-
-            if rise_delta > set_delta:
-                rise_delta = 0.
-
-            self.next_pass_lines.append([(rise_delta * 24., degrees(televation), 'purple', 6),  # Start point
-                                         (set_delta * 24., degrees(televation), 'purple', 6, ' ' + sat.name)]
-                                        # End point with satellite name
-                                        )
-
-        # Tell the MainApp to plot the lines on the graphs
-        # A list of line lists of point tuples
-        self.upcoming_passes_graph.draw(*self.next_pass_lines)
-
     def display_upcoming_passes(self):
         """Displays the upcoming passes for the selected satellites
-            on the text display_on_upcoming_passes.
+            using `self.display_on_upcoming_passes()`.
             """
 
-        # tlist = self.transit_list_sorted_by_next_pass()
-
-        self.transit_list_sorted_by_time()
+        transit_list = self.transit_list_sorted_by_time()
 
         self.display_on_upcoming_passes(f'Time Zone: {"Local" if LOCALTIME else "UTC"}')
-        # by_number = {sat.model.satnum: sat for sat in self.satellite_body_objects}
-        for v in self.satellites_filtered_by_check_boxes():
-            satellite = self.by_number[int(v['Number'])]
-            ts = load.timescale()
-            now = ts.now()
-            t0 = ts.utc(2020, 3, 30)
-            t1 = ts.utc(2020, 3, 31)
-            t, events = satellite.find_events(home, t0, t1, altitude_degrees=0.0)
-            for ti, event in zip(t, events):
-                if ti.utc_datetime() > now.utc_datetime():
-                    name = ('rise above 0°', 'culminate', 'set below 0°')[event]
-                    self.display_on_upcoming_passes(satellite.model.satnum)
-                    self.display_on_upcoming_passes(ti.utc_iso(), name)
+        for transit in transit_list:
+            self.display_on_upcoming_passes(f'Pass for satellite: {transit[3]}', colour='purple')
+            if transit[0]:
+                rise_time = ts.tt_jd(transit[0]).utc_iso(' ')
+                alt, az, velocity = self.get_alt_azimuth(transit[0], transit[3])
 
-            # TODO: Sort the display by event time
+                self.display_on_upcoming_passes(f'Rise    : {rise_time} az: {az.degrees:5.1f}°', colour='darkgreen')
 
-            # self.display_on_upcoming_passes(f'{truncate(riseDelta)} days {eDate(eDelta(riseDelta), False):%X} until the next pass.')
-            #
-            # if riseDelta > setDelta:
-            #     riseDelta = 0.
-            #
-            # if  rDel > setDelta:
-            #     self.display_on_upcoming_passes('Already risen.', colour='magenta')
-            # else:
-            #     self.display_on_upcoming_passes(f"Rise Time:    {eDate(rt):%y/%m/%d %X} Azimuth:   {degrees(razi):5.1f}°")
-            #
-            # if transitDelta > setDelta:
-            #     self.display_on_upcoming_passes('Already transited.', colour='magenta')
-            # else:
-            #     self.display_on_upcoming_passes(f"Transit Time: {eDate(tt):%y/%m/%d %X} Altitude:  {degrees(televation):5.1f}°")
-            #
-            # self.display_on_upcoming_passes(f"Set Time:     {eDate(st):%y/%m/%d %X} Azimuth:   {degrees(sazi):5.1f}°")
-            # self.display_on_upcoming_passes()
+            if transit[1]:
+                transit_time = ts.tt_jd(transit[1]).utc_iso(' ')
+                alt, az, velocity = self.get_alt_azimuth(transit[1], transit[3])
 
-        self.display_on_upcoming_passes('Listing finished!', colour='purple')
+                self.display_on_upcoming_passes(f'Transit : {transit_time} az: {az.degrees:5.1f}° alt: {alt.degrees:4.1f}°', colour='darkgreen')
+
+            if transit[2]:
+                set_time = ts.tt_jd(transit[2]).utc_iso(' ')
+                alt, az, velocity = self.get_alt_azimuth(transit[2], transit[3])
+
+                self.display_on_upcoming_passes(f'Set     : {set_time} az: {az.degrees:5.1f}°', colour='darkgreen')
+
+            self.display_on_upcoming_passes(':')
+
+        self.display_on_upcoming_passes('Listing finished!', colour='red')
 
         self.scroll_upcoming_passes_display(0)
 
