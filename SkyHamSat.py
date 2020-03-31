@@ -93,7 +93,6 @@ class MainApp(QMainWindow):
         """MainApp Constructor."""
 
         # TODO add favourites
-        # FIXME fix problem going over midnight
         # FIXME fix multiple entries in satslist.csv for same satellite_name
         # TODO add save number of passes as settings
         # TODO add text splitter position as settings
@@ -570,7 +569,7 @@ class MainApp(QMainWindow):
             display_on_upcoming_passes doppler shifts.
             """
 
-        #self.draw_upcoming_passes()
+        self.draw_upcoming_passes()
 
         up_positions = []
         dynamic_lines = []
@@ -754,6 +753,39 @@ class MainApp(QMainWindow):
 
         self.update()
 
+    def draw_upcoming_passes(self):
+        """Draws the next pass for the selected satellites
+            on the upcoming passes graph."""
+
+        transit_list = self.transit_list_sorted_by_time()
+
+        self.next_pass_lines = []
+
+        for transit in transit_list:
+            now = ts.now().tt  # Julian
+            if  not transit[0]:
+                transit[0] = now
+
+            if transit[1]:
+                alt, az, velocity = self.get_alt_azimuth(transit[1], transit[3])
+            else:
+                alt, az, velocity = self.get_alt_azimuth(now, transit[3])
+
+            rise_delta = transit[0] - now
+            set_delta = transit[2] - now
+
+            if (set_delta* 24) < self.hours_to_show:
+                self.next_pass_lines.append([(rise_delta * 24., alt.degrees, 'purple', 6),  # Start point
+                                     (set_delta * 24., alt.degrees, 'purple', 6, ' ' + transit[3])]
+                                    )
+
+        # Tell the MainApp to plot the lines on the graphs
+        # A list of line lists of point tuples
+        self.upcoming_passes_graph.draw(*self.next_pass_lines)
+
+        self.update()
+
+
     def display_next_passes_for_selected_satellite(self):
         """Displays the next passes for the selected satellite on the
             text display_on_upcoming_passes."""
@@ -822,7 +854,7 @@ class MainApp(QMainWindow):
         stations_url = 'http://celestrak.com/NORAD/elements/amateur.txt'
         self.satellite_body_objects = load.tle_file(stations_url)
 
-        QMessageBox.information(self, "Ephemeris",
+        QMessageBox.information(self, "Ephemera",
                                 'TLEs Downloaded!',
                                 QMessageBox.Ok)
 
@@ -839,25 +871,21 @@ class MainApp(QMainWindow):
             if transit[0]:
                 rise_time = ts.tt_jd(transit[0]).utc_iso(' ')
                 alt, az, velocity = self.get_alt_azimuth(transit[0], transit[3])
-
                 self.display_on_upcoming_passes(f'Rise    : {rise_time} az: {az.degrees:5.1f}°', colour='darkgreen')
 
             if transit[1]:
                 transit_time = ts.tt_jd(transit[1]).utc_iso(' ')
                 alt, az, velocity = self.get_alt_azimuth(transit[1], transit[3])
-
                 self.display_on_upcoming_passes(f'Transit : {transit_time} az: {az.degrees:5.1f}° alt: {alt.degrees:4.1f}°', colour='darkgreen')
 
             if transit[2]:
                 set_time = ts.tt_jd(transit[2]).utc_iso(' ')
                 alt, az, velocity = self.get_alt_azimuth(transit[2], transit[3])
-
                 self.display_on_upcoming_passes(f'Set     : {set_time} az: {az.degrees:5.1f}°', colour='darkgreen')
 
-            self.display_on_upcoming_passes(':')
+            self.display_on_upcoming_passes()
 
         self.display_on_upcoming_passes('Listing finished!', colour='red')
-
         self.scroll_upcoming_passes_display(0)
 
     def closeEvent(self, event):
