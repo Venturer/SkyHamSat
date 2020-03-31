@@ -456,6 +456,9 @@ class MainApp(QMainWindow):
                 yield s
 
     def transit_list_sorted_by_time(self):
+        """:returns: [rise time: Julian, transit time: Julian, set time: Julian,
+                        satellite name: string]
+            """
 
         ts = load.timescale()
 
@@ -466,8 +469,17 @@ class MainApp(QMainWindow):
             pass_list = self.get_next_passes(sat, self.spinBoxNextPasses.value())
             pass_info = [None, None, None, sat]
             for pass_event in pass_list:
-                print(pass_event)
+                if pass_event[1] == 'rise':
+                    pass_info[0] = pass_event[0].tt
+                elif pass_event[1] == 'transit':
+                    pass_info[1] = pass_event[0].tt
+                elif pass_event[1] == 'set':
+                    pass_info[2] = pass_event[0].tt
+                    transit_list.append(pass_info)
 
+        transit_list.sort()
+
+        return transit_list
 
     def transit_list_sorted_by_next_pass(self):
         """Return a list from self.satellites, sorted by the next pass rise time.
