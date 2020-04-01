@@ -39,7 +39,6 @@ from PyQt5.QtCore import *
 from PyQt5.QtGui import *
 from PyQt5.QtWidgets import *
 
-
 # Third party modules:
 import qtawesome as qta
 import numpy as np
@@ -78,6 +77,8 @@ class MainApp(QMainWindow):
     current_pass_graph = None
 
     showDebug = True  # set to False to disable debug displays
+
+    toggle = 0
 
     def __init__(self):
 
@@ -163,11 +164,9 @@ class MainApp(QMainWindow):
     def on_checkboxes_changed(self, *args):
         """Actions when any of the checkboxes are changed."""
 
-        # self.filtered_satellites = self.satellites_filtered_by_check_boxes()
-        # self.filtered_satellites = [s for s in self.satellites_filtered_by_check_boxes()]
-
         self.fill_select_satellite_combo()
         self.fill_combo_box_with_list_of_modes()
+        self.draw_upcoming_passes()
 
     @pyqtSlot(int)
     def on_spinBoxNextPasses_valueChanged(self, value):
@@ -308,28 +307,6 @@ class MainApp(QMainWindow):
         self.selected_satellite_info()
         pass
 
-    def decode_tles(self):
-        """Decode the saved satellite TLEs in the text file
-            'satellites.tle' to PyEphem satellite body objects.
-
-            Returns -> list of [PyEphem EarthSatellite body object, sat_number]
-            """
-
-        with open('satellites.tle', 'r') as f:
-            satellite_tles = f.read()
-
-        data_lines = satellite_tles.splitlines()
-
-        satellite_objects = []
-
-        for idx in range(0, len(data_lines), 3):
-            sat_number = data_lines[idx + 2].split(' ')[1]
-            satellite_objects.append([ephem.readtle(data_lines[idx], data_lines[idx + 1],
-                                                    data_lines[idx + 2]),
-                                      sat_number])
-
-        return satellite_objects
-
     def get_satellite_tles(self):
         """Get all the amateur satellite TLEs from celestrak.
 
@@ -450,7 +427,7 @@ class MainApp(QMainWindow):
             if any([hasTransponder, hasUplink, hasDownlink, hasBeacon, dont_filter]) and hasMode:
                 yield s
 
-    def transit_list_sorted_by_time(self):
+    def transit_list_sorted_by_time(self, sort=True):
         """:returns: [rise time: Julian, transit time: Julian, set time: Julian,
                         satellite name: string]
             """
@@ -474,7 +451,8 @@ class MainApp(QMainWindow):
             if not pass_list:
                 transit_list.append([0, 0, 0, sat])
 
-        transit_list.sort()
+        if sort:
+            transit_list.sort()
 
         return transit_list
 
@@ -519,7 +497,8 @@ class MainApp(QMainWindow):
         # Create a dict of satellite_data dicts where the NORAD numbers are also
         # in satellite_body_objects, i.e. where we have both TLEs and satellite_name info
         self.satellites = {s: self.satellite_data[s] for s in self.satellite_data
-                           if self.satellite_data[s]['Number'] in str(numbers.keys())}
+                           if (self.satellite_data[s]['Number'] in str(numbers.keys())
+                               and self.satellite_data[s]['Status'] != 'inactive')}
 
         # Fill the modes and Select Satellite combo boxes
         self.fill_combo_box_with_list_of_modes()
@@ -543,16 +522,22 @@ class MainApp(QMainWindow):
             display_on_upcoming_passes doppler shifts.
             """
 
-        self.draw_upcoming_passes()
+        if (self.toggle % 10) == 0:  # Every 10 timer calls
+            self.draw_upcoming_passes()
+
+        elif not (self.toggle % 2 == 0):  # Every odd timer call
+            self.draw_current_pass_and_doppler()
+
+        self.toggle += 1
+
+    def draw_current_pass_and_doppler(self):
 
         up_positions = []
         dynamic_lines = []
-
         selected_satellite = self.comboBoxSelectSatelllite.itemData(
             self.comboBoxSelectSatelllite.currentIndex())
-        if selected_satellite is None:
-            return  # Will be None if combo box is cleared
-
+        # if selected_satellite is None:
+        #     return  # Will be None if combo box is cleared
         for v in self.satellites_filtered_by_check_boxes():
             sat = v['Satellite']
             calc_time = ts.now().tt
@@ -561,7 +546,6 @@ class MainApp(QMainWindow):
             if alt.degrees > 0:
                 up_positions.append((alt.degrees, az.radians, 'grey', 8, f' {sat}'))  # append tuple
                 if sat == selected_satellite:
-
                     doppler_shift_2m = -slant_velocity / 300000 * 145.9e6
                     doppler_shift_100 = -slant_velocity / 300000 * 100e6  # 145.9e6
 
@@ -575,15 +559,12 @@ class MainApp(QMainWindow):
                                          f' {sat}: 2: {doppler_shift_2m:+0.0f}, 70: {doppler_shift_70cm:+0.0f} Hz '))
 
                     self.doppler.setText(f'{selected_doppler_shift:+0.0f} Hz')
-
         if self.lines:
             dynamic_lines.append(self.lines[0])
-
         for up in up_positions:
             dynamic_lines.append([up])
 
             self.current_pass_graph.draw(*dynamic_lines)
-
         self.update()
 
     @pyqtSlot()
@@ -737,7 +718,7 @@ class MainApp(QMainWindow):
         """Draws the next pass for the selected satellites
             on the upcoming passes graph."""
 
-        transit_list = self.transit_list_sorted_by_time()
+        transit_list = self.transit_list_sorted_by_time(sort=False)
 
         self.next_pass_lines = []
 
@@ -775,8 +756,6 @@ class MainApp(QMainWindow):
 
         if satellite_name is None:
             return  # Will be None if combo box is cleared
-
-        self.display_on_selected_satellite_passes(f'Time Zone: {"Local" if LOCALTIME else "UTC"}')
 
         self.display_on_selected_satellite_passes(f'Next 10 passes for satellite: {satellite_name}', colour='purple')
         self.display_on_selected_satellite_passes()
@@ -819,10 +798,7 @@ class MainApp(QMainWindow):
 
             self.display_on_selected_satellite_passes()
 
-        self.display_on_selected_satellite_passes('Listing finished!', colour='red')
-
         self.scroll_selected_satellite_passes_display(0)
-
 
 
     def load_tles(self):
@@ -845,7 +821,6 @@ class MainApp(QMainWindow):
 
         transit_list = self.transit_list_sorted_by_time()
 
-        self.display_on_upcoming_passes(f'Time Zone: {"Local" if LOCALTIME else "UTC"}')
         for transit in transit_list:
             self.display_on_upcoming_passes(f'Pass for satellite: {transit[3]}', colour='purple')
             if transit[0]:
@@ -865,7 +840,6 @@ class MainApp(QMainWindow):
 
             self.display_on_upcoming_passes()
 
-        self.display_on_upcoming_passes('Listing finished!', colour='red')
         self.scroll_upcoming_passes_display(0)
 
     def closeEvent(self, event):
@@ -1119,26 +1093,6 @@ def truncate(number, places=0) -> str:
         context.rounding = ROUND_DOWN
         exponent = Decimal(str(10 ** - places))
         return Decimal(str(number)).quantize(exponent).to_eng_string()
-
-
-def eDate(ephemDate, local=None):
-    """Return the date/time in local or UTC."""
-
-    if local is None:
-        try:  # See if global LOCALTIME is defined
-            local = LOCALTIME
-        except NameError:
-            pass
-    if local:
-        return ephem.localtime(ephemDate)
-    else:
-        return ephemDate.datetime()
-
-
-def eDelta(delta):
-    """Convert to a date/time from 00:00:00 1900/1/1."""
-
-    return ephem.Date(delta + 12 * ephem.hour)
 
 
 def append_text_to_text_edit(tEdit, txt, colour='black'):
