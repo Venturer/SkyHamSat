@@ -25,19 +25,19 @@ from __future__ import division
 import math
 
 # PyQt interface imports
-from PyQt5.QtWidgets import *
 from PyQt5.QtCore import *
 from PyQt5.QtGui import *
+
 
 class NotAGraphError(ValueError):
     """Exception thrown by reCreateGraph."""
     pass
 
-class Graph(object):
 
+class Graph(object):
     """A graph object for use with Python Qt based programs.
 
-        Useage:
+        Usage:
 
         Create a label.
 
@@ -55,13 +55,13 @@ class Graph(object):
         """
 
     def __init__(self, graph_label,
-                    xmin = 0, xmax = 1000,
-                    ymin = 0, ymax = 1000,
-                    xgrids = 10, ygrids = 10,
-                    size_x = 500, size_y = 500,
-                    show_labels = (True, True),
-                    text_pixel_size = 12,
-                    background = QColor(234, 255, 202)):
+                 xmin=0, xmax=1000,
+                 ymin=0, ymax=1000,
+                 xgrids=10, ygrids=10,
+                 size_x=500, size_y=500,
+                 show_labels=(True, True),
+                 text_pixel_size=12,
+                 background=QColor(234, 255, 202)):
 
         """ Initialises the Graph object.
 
@@ -95,8 +95,8 @@ class Graph(object):
         self.background = background
 
         self.texts = []
-        self.polarTexts = [] # only used in Polar variants
-        self.centreMax = True # only used in Polar variants
+        self.polarTexts = []  # only used in Polar variants
+        self.centreMax = True  # only used in Polar variants
 
         self.lines = []
 
@@ -111,7 +111,7 @@ class Graph(object):
             self.xmax = xmax
 
         if ymax - ymin == 0:
-            if ymax >0:
+            if ymax > 0:
                 self.ymax = ymax
                 self.ymin = 0
             else:
@@ -142,7 +142,7 @@ class Graph(object):
             returns the x value in image coordinates as a float."""
 
         xt = (float(self.image_size_x) / float(self.xmax - self.xmin) *
-                (x - self.xmin))
+              (x - self.xmin))
 
         return xt
 
@@ -156,7 +156,7 @@ class Graph(object):
         imsize = self.image_size_y
 
         yt = (float(imsize) / float(self.ymax - self.ymin) *
-                (y - self.ymin))
+              (y - self.ymin))
 
         yyt = imsize - yt
 
@@ -175,9 +175,9 @@ class Graph(object):
         painter.begin(self.graph_image)
 
         # set the font pixel size
-        new_font = QFont(painter.font())        # get a copy of the old font
+        new_font = QFont(painter.font())  # get a copy of the old font
         new_font.setPixelSize(self.pixel_size)
-        painter.setFont(new_font)               # update the font
+        painter.setFont(new_font)  # update the font
 
         # get the metrics of the new font
         metrics = painter.fontMetrics()
@@ -194,14 +194,14 @@ class Graph(object):
             painter.drawLine(move_to, line_to)
 
             if self.show_labels_x:
-                if (xi != 0) : # or (self.xmin == self.ymin):
+                if (xi != 0):  # or (self.xmin == self.ymin):
                     painter.setPen(Qt.blue)
 
                     painter.drawText(xg + 2, self.image_size_y - 4,
-                        self.xformat.format(
-                        float(self.xmin) + float(self.xmax - self.xmin)
-                        / float(self.xgrids) * xi)
-                        )
+                                     self.xformat.format(
+                                         float(self.xmin) + float(self.xmax - self.xmin)
+                                         / float(self.xgrids) * xi)
+                                     )
 
         # first x axis label:
 
@@ -214,8 +214,8 @@ class Graph(object):
             # draw at pixel width (+ a bit) back from the right of the image
             # and pixel height (+ a bit) up from the bottom
             painter.drawText(4,
-                                self.image_size_y - 4 - hy,
-                                self.xformat.format(float(self.xmin)))
+                             self.image_size_y - 4 - hy,
+                             self.xformat.format(float(self.xmin)))
 
         # final x axis label:
 
@@ -228,8 +228,8 @@ class Graph(object):
             # draw at pixel width (+ a bit) back from the right of the image
             # and pixel height (+ a bit) up from the bottom
             painter.drawText(self.image_size_x - wx - 4,
-                                self.image_size_y - 4 - hy,
-                                self.xformat.format(float(self.xmax)))
+                             self.image_size_y - 4 - hy,
+                             self.xformat.format(float(self.xmax)))
 
         # y grids
         for yi in range(self.ygrids):
@@ -246,7 +246,7 @@ class Graph(object):
                     painter.setPen(Qt.red)
                     painter.drawText(4, yg - 2, self.yformat.format(self.ymax -
                                                                     ((float(self.ymax - self.ymin) /
-                                                                      float(self.ygrids) * yi ))))
+                                                                      float(self.ygrids) * yi))))
 
         # first y axis label:
 
@@ -271,7 +271,7 @@ class Graph(object):
         # draw borders with a Rect
         painter.setPen(Qt.blue)
         painter.drawRect(0, 0, self.image_size_x - 1,
-                            self.image_size_y - 1)
+                         self.image_size_y - 1)
 
         # draw texts(if any)
         for t in self.texts:
@@ -280,7 +280,7 @@ class Graph(object):
 
         painter.end()
 
-        #self.update()
+        # self.update()
 
     def draw(self, *args):
 
@@ -316,16 +316,16 @@ class Graph(object):
         self.graph_image = QPixmap(self.image_size_x, self.image_size_y)
         self.graph_image.fill(self.background)
 
-        self._grid_and_texts() # draw the grids and texts
+        self._grid_and_texts()  # draw the grids and texts
 
         # draw on a pixmap using a painter
         painter = QPainter()
         painter.begin(self.graph_image)
 
         # set the font pixel size
-        new_font = QFont(painter.font())        # get a copy of the old font
+        new_font = QFont(painter.font())  # get a copy of the old font
         new_font.setPixelSize(self.pixel_size)
-        painter.setFont(new_font)               # update the font
+        painter.setFont(new_font)  # update the font
 
         # draw the lines (if any):
 
@@ -339,35 +339,35 @@ class Graph(object):
                     painter.setPen(QColor(point[2]))
                     painter.setBrush(QColor(point[2]))
                 else:
-                    painter.setPen(Qt.black)       # default colour
+                    painter.setPen(Qt.black)  # default colour
 
                 if i == 0:
                     # first point is a move
                     last_point = QPoint(self.tx(point[0]),
                                         self.ty(point[1]))
 
-                    if len(point) >= 4: # if point has a point size field
+                    if len(point) >= 4:  # if point has a point size field
                         # draw a rectangle at start of point
                         point_size = point[3]
                         painter.drawRect(
                             self.tx(point[0]) - point_size // 2,
-                            self.ty(point[1]) - point_size // 2 ,
+                            self.ty(point[1]) - point_size // 2,
                             point_size, point_size)
 
-                    if len(point) >= 5: # if point has a text field
+                    if len(point) >= 5:  # if point has a text field
                         painter.drawText(self.tx(point[0]), self.ty(point[1]), point[4])
 
                 else:
                     # subsequent points
-                    if len(point) >= 4: # if point has a point size field
+                    if len(point) >= 4:  # if point has a point size field
                         # draw a rectangle at the point
                         point_size = point[3]
                         painter.drawRect(
                             self.tx(point[0]) - point_size // 2,
-                            self.ty(point[1]) - point_size // 2 ,
+                            self.ty(point[1]) - point_size // 2,
                             point_size, point_size)
 
-                    if len(point) >= 5: # if point has a text field
+                    if len(point) >= 5:  # if point has a text field
                         painter.drawText(self.tx(point[0]), self.ty(point[1]), point[4])
 
                     # draw the line
@@ -381,7 +381,7 @@ class Graph(object):
         painter.end()
         self.graph_label.setPixmap(self.graph_image)
 
-    def add_text(self, text, x, y, colour = 'black', fixed=False):
+    def add_text(self, text, x, y, colour='black', fixed=False):
 
         """`text` is added to the graph at x, y (in graph coordinates)
             in the specified colour and using the default typeface.
@@ -399,7 +399,7 @@ class Graph(object):
 
         self.texts.append((text, x, y, colour, fixed))
 
-    def remove_text(self, text, x, y, colour = 'black', fixed=False):
+    def remove_text(self, text, x, y, colour='black', fixed=False):
 
         """text at x, y (in graph coordinates) in the specified colour is
              removed from the Graph.
@@ -412,8 +412,8 @@ class Graph(object):
             Raises exception ValueError if the text, x, y, colour, fixed
             combination is not found."""
 
-        inx = self.texts.index((text, x, y, colour, fixed))    # find the text
-        del self.texts[inx]     # delete it from the list
+        inx = self.texts.index((text, x, y, colour, fixed))  # find the text
+        del self.texts[inx]  # delete it from the list
 
     def add_text_by_proportion(self, text, x_proportion, y_proportion, colour='black', fixed=False):
 
@@ -449,9 +449,9 @@ class Graph(object):
             combination is not found."""
 
         self.remove_text(text,
-                        (self.xmax - self.xmin) * x_proportion + self.xmin,
-                        (self.ymax - self.ymin) * y_proportion + self.ymin,
-                        colour, fixed)
+                         (self.xmax - self.xmin) * x_proportion + self.xmin,
+                         (self.ymax - self.ymin) * y_proportion + self.ymin,
+                         colour, fixed)
 
     def clear_texts(self):
 
@@ -491,11 +491,11 @@ class Graph(object):
 
         image = self.get_image()
         if image:
-            saved = image.save(filename, None, -1) # default resolution
+            saved = image.save(filename, None, -1)  # default resolution
             return saved
         return None
 
-    def set_grid_label_format(self,  x='{}',  y='{}'):
+    def set_grid_label_format(self, x='{}', y='{}'):
 
         """Set the format of the numbers labelling the X and Y grid axies.
 
@@ -515,10 +515,9 @@ class Graph(object):
 
 
 class Scatter(Graph):
-
     """A scatter graph object for use with Python Qt based programs.
 
-        Useage:
+        Usage:
 
         Create a label.
 
@@ -534,7 +533,6 @@ class Scatter(Graph):
 
         Other methods as for the Graph object.
         """
-
 
     def draw(self, *args):
 
@@ -567,16 +565,16 @@ class Scatter(Graph):
         self.graph_image = QPixmap(self.image_size_x, self.image_size_y)
         self.graph_image.fill(self.background)
 
-        self._grid_and_texts() # draw the grids and texts
+        self._grid_and_texts()  # draw the grids and texts
 
         # draw on a pixmap using a painter
         painter = QPainter()
         painter.begin(self.graph_image)
 
         # set the font pixel size
-        new_font = QFont(painter.font())        # get a copy of the old font
+        new_font = QFont(painter.font())  # get a copy of the old font
         new_font.setPixelSize(self.pixel_size)
-        painter.setFont(new_font)               # update the font
+        painter.setFont(new_font)  # update the font
 
         # draw the scatter points (if any):
 
@@ -595,32 +593,29 @@ class Scatter(Graph):
                     painter.setBrush(Qt.black)  # default colour
                     painter.setPen(Qt.black)
 
-                if len(point) >= 4: # if a point size has been given
+                if len(point) >= 4:  # if a point size has been given
                     point_size = point[3]
                 else:
                     point_size = 2
 
-                if len(point) >= 5: # if point has a text field
-                        painter.drawText(self.tx(point[0]), self.ty(point[1]), point[4])
+                if len(point) >= 5:  # if point has a text field
+                    painter.drawText(self.tx(point[0]), self.ty(point[1]), point[4])
 
                 # draw a rectangle at the point
                 painter.drawRect(self.tx(point[0]) - point_size // 2,
-                    self.ty(point[1]) - point_size // 2 ,
-                    point_size, point_size)
-
+                                 self.ty(point[1]) - point_size // 2,
+                                 point_size, point_size)
 
         painter.end()
         self.graph_label.setPixmap(self.graph_image)
 
 
-
 class Poly(Graph):
-
     """A graph object for use with Python Qt based programs. Draws the
         graph lines as poly lines to improve performance over the Graph
         object, but with reduced draw options.
 
-        Useage:
+        Usage:
 
         Create a label.
 
@@ -673,7 +668,7 @@ class Poly(Graph):
         self.graph_image = QPixmap(self.image_size_x, self.image_size_y)
         self.graph_image.fill(self.background)
 
-        self._grid_and_texts() # draw the grids and texts
+        self._grid_and_texts()  # draw the grids and texts
 
         # draw on a pixmap using a painter
         painter = QPainter()
@@ -693,11 +688,11 @@ class Poly(Graph):
                     if len(point) >= 3:  # if point has a colour field
                         painter.setPen(QColor(point[2]))
                     else:
-                        painter.setPen(Qt.black)       # default colour
+                        painter.setPen(Qt.black)  # default colour
 
                     # first point is a move
                     path.moveTo(self.tx(point[0]),
-                                        self.ty(point[1]))
+                                self.ty(point[1]))
 
                 else:
                     # subsequent points
@@ -710,11 +705,11 @@ class Poly(Graph):
         painter.end()
         self.graph_label.setPixmap(self.graph_image)
 
-class Polar(Graph):
 
+class Polar(Graph):
     """A graph object for use with Python Qt based programs.
 
-        Useage:
+        Usage:
 
         Create a label.
 
@@ -733,13 +728,13 @@ class Polar(Graph):
         """
 
     def __init__(self, graph_label,
-                    r_min = 0, r_max = 90,
-                    theta_min = 0, theta_max = 360,
-                    r_circles = 6, theta_spokes = 12,
-                    size_x = 500, size_y = 500,
-                    show_labels = (True, True),
-                    text_pixel_size = 12,
-                    background = QColor(234, 255, 202)):
+                 r_min=0, r_max=90,
+                 theta_min=0, theta_max=360,
+                 r_circles=6, theta_spokes=12,
+                 size_x=500, size_y=500,
+                 show_labels=(True, True),
+                 text_pixel_size=12,
+                 background=QColor(234, 255, 202)):
 
         """ Initialises the Polar graph object.
 
@@ -771,7 +766,7 @@ class Polar(Graph):
 
         self.texts = []
         self.polarTexts = []
-        self.centreMax = True # for future use
+        self.centreMax = True  # for future use
 
         self.lines = []
 
@@ -786,7 +781,7 @@ class Polar(Graph):
             self.xmax = r_max
 
         if theta_max - theta_min == 0:
-            if theta_max >0:
+            if theta_max > 0:
                 self.ymax = theta_max
                 self.ymin = 0
             else:
@@ -845,16 +840,16 @@ class Polar(Graph):
         self.graph_image = QPixmap(self.image_size_x, self.image_size_y)
         self.graph_image.fill(self.background)
 
-        self._grid_and_texts() # draw the grids and texts
+        self._grid_and_texts()  # draw the grids and texts
 
         # draw on a pixmap using a painter
         painter = QPainter()
         painter.begin(self.graph_image)
 
         # set the font pixel size
-        new_font = QFont(painter.font())        # get a copy of the old font
+        new_font = QFont(painter.font())  # get a copy of the old font
         new_font.setPixelSize(self.pixel_size)
-        painter.setFont(new_font)               # update the font
+        painter.setFont(new_font)  # update the font
 
         # draw the lines (if any):
 
@@ -868,34 +863,34 @@ class Polar(Graph):
                     painter.setPen(QColor(point[2]))
                     painter.setBrush(QColor(point[2]))
                 else:
-                    painter.setPen(Qt.black)       # default colour
+                    painter.setPen(Qt.black)  # default colour
 
                 if i == 0:
                     # first point is a move
                     last_point = QPoint(self.pr(point[0], point[1]), self.pt(point[0], point[1]))
 
-                    if len(point) >= 4: # if point has a point size field
+                    if len(point) >= 4:  # if point has a point size field
                         # draw a rectangle at start of point
                         point_size = point[3]
                         painter.drawRect(
                             self.pr(point[0], point[1]) - point_size // 2,
-                            self.pt(point[0], point[1]) - point_size // 2 ,
+                            self.pt(point[0], point[1]) - point_size // 2,
                             point_size, point_size)
 
-                    if len(point) >= 5: # if point has a text field
+                    if len(point) >= 5:  # if point has a text field
                         painter.drawText(self.pr(point[0], point[1]), self.pt(point[0], point[1]), point[4])
 
                 else:
                     # subsequent points
-                    if len(point) >= 4: # if point has a point size field
+                    if len(point) >= 4:  # if point has a point size field
                         # draw a rectangle at the point
                         point_size = point[3]
                         painter.drawRect(
                             self.pr(point[0], point[1]) - point_size // 2,
-                            self.pt(point[0], point[1]) - point_size // 2 ,
+                            self.pt(point[0], point[1]) - point_size // 2,
                             point_size, point_size)
 
-                    if len(point) >= 5: # if point has a text field
+                    if len(point) >= 5:  # if point has a text field
                         painter.drawText(self.pr(point[0], point[1]), self.pt(point[0], point[1]), point[4])
 
                     # draw the line
@@ -915,7 +910,7 @@ class Polar(Graph):
         graphRadius = min(self.image_size_x, self.image_size_y) / 2.0
 
         # r as inverse proportion
-        rp = (self.xmax - r) /  (self.xmax - self.xmin)
+        rp = (self.xmax - r) / (self.xmax - self.xmin)
 
         rad = graphRadius * rp
 
@@ -960,9 +955,9 @@ class Polar(Graph):
         painter.begin(self.graph_image)
 
         # set the font pixel size
-        new_font = QFont(painter.font())        # get a copy of the old font
+        new_font = QFont(painter.font())  # get a copy of the old font
         new_font.setPixelSize(self.pixel_size)
-        painter.setFont(new_font)               # update the font
+        painter.setFont(new_font)  # update the font
 
         # get the metrics of the new font
         metrics = painter.fontMetrics()
@@ -984,10 +979,10 @@ class Polar(Graph):
                     painter.setPen(Qt.blue)
 
                     painter.drawText(radius + 2, centreP.x() - 4,
-                        self.xformat.format(
-                        float(self.xmin) + float(self.xmax - self.xmin)
-                        / float(self.xgrids) * ri)
-                        )
+                                     self.xformat.format(
+                                         float(self.xmin) + float(self.xmax - self.xmin)
+                                         / float(self.xgrids) * ri)
+                                     )
 
         # first x axis label:
 
@@ -1007,7 +1002,8 @@ class Polar(Graph):
 
             painter.setPen(QColor('# 89a0cd'))
             move_to = QPoint(centre, centre)
-            line_to = QPoint(centre - radius * math.sin(math.tau / self.ygrids * yi), centre - radius * math.cos(math.tau / self.ygrids * yi))
+            line_to = QPoint(centre - radius * math.sin(math.tau / self.ygrids * yi),
+                             centre - radius * math.cos(math.tau / self.ygrids * yi))
             painter.drawLine(move_to, line_to)
 
             if self.show_labels_y:
@@ -1016,8 +1012,8 @@ class Polar(Graph):
                     painter.setPen(Qt.red)
                     painter.drawText(line_to.x() + 4, line_to.y() - 2,
                                      self.yformat.format(self.ymax -
-                                                                    ((float(self.ymax - self.ymin) /
-                                                                      float(self.ygrids) * yi ))))
+                                                         ((float(self.ymax - self.ymin) /
+                                                           float(self.ygrids) * yi))))
 
         # first theta grid label:
 
@@ -1032,7 +1028,7 @@ class Polar(Graph):
         # draw borders with a Rect
         painter.setPen(Qt.blue)
         painter.drawRect(0, 0, self.image_size_x - 1,
-                            self.image_size_y - 1)
+                         self.image_size_y - 1)
 
         # draw texts(if any)
         for t in self.texts:
@@ -1088,14 +1084,14 @@ class Polar(Graph):
             Raises exception ValueError if the text, r, theta, colour, fixed
             combination is not found."""
 
-        inx = self.polarTexts.index((text, r, theta, colour, fixed))    # find the text
-        del self.polarTexts[inx]     # delete it from the list
+        inx = self.polarTexts.index((text, r, theta, colour, fixed))  # find the text
+        del self.polarTexts[inx]  # delete it from the list
+
 
 class PolarScatter(Polar):
-
     """A polar scatter graph object for use with Python Qt based programs.
 
-        Useage:
+        Usage:
 
         Create a label.
 
@@ -1111,7 +1107,6 @@ class PolarScatter(Polar):
 
         Other methods as for the Graph object.
         """
-
 
     def draw(self, *args):
 
@@ -1146,16 +1141,16 @@ class PolarScatter(Polar):
         self.graph_image = QPixmap(self.image_size_x, self.image_size_y)
         self.graph_image.fill(self.background)
 
-        self._grid_and_texts() # draw the grids and texts
+        self._grid_and_texts()  # draw the grids and texts
 
         # draw on a pixmap using a painter
         painter = QPainter()
         painter.begin(self.graph_image)
 
         # set the font pixel size
-        new_font = QFont(painter.font())        # get a copy of the old font
+        new_font = QFont(painter.font())  # get a copy of the old font
         new_font.setPixelSize(self.pixel_size)
-        painter.setFont(new_font)               # update the font
+        painter.setFont(new_font)  # update the font
 
         # draw the scatter points (if any):
 
@@ -1174,30 +1169,29 @@ class PolarScatter(Polar):
                     painter.setBrush(Qt.black)  # default colour
                     painter.setPen(Qt.black)
 
-                if len(point) >= 4: # if a point size has been given
+                if len(point) >= 4:  # if a point size has been given
                     point_size = point[3]
                 else:
                     point_size = 2
 
-                if len(point) >= 5: # if point has a text field
-                        painter.drawText(self.pr(point[0], point[1]), self.pt(point[0], point[1]), point[4])
+                if len(point) >= 5:  # if point has a text field
+                    painter.drawText(self.pr(point[0], point[1]), self.pt(point[0], point[1]), point[4])
 
                 # draw a rectangle at the point
                 painter.drawRect(self.pr(point[0], point[1]) - point_size // 2,
-                    self.pt(point[0], point[1]) - point_size // 2 ,
-                    point_size, point_size)
-
+                                 self.pt(point[0], point[1]) - point_size // 2,
+                                 point_size, point_size)
 
         painter.end()
         self.graph_label.setPixmap(self.graph_image)
 
-class PolarPoly(Polar):
 
+class PolarPoly(Polar):
     """A graph object for use with Python Qt based programs. Draws the
         graph lines as poly lines to improve performance over the Polar
         object, but with reduced draw options.
 
-        Useage:
+        Usage:
 
         Create a label.
 
@@ -1251,7 +1245,7 @@ class PolarPoly(Polar):
         self.graph_image = QPixmap(self.image_size_x, self.image_size_y)
         self.graph_image.fill(self.background)
 
-        self._grid_and_texts() # draw the grids and texts
+        self._grid_and_texts()  # draw the grids and texts
 
         # draw on a pixmap using a painter
         painter = QPainter()
@@ -1271,7 +1265,7 @@ class PolarPoly(Polar):
                     if len(point) >= 3:  # if point has a colour field
                         painter.setPen(QColor(point[2]))
                     else:
-                        painter.setPen(Qt.black)       # default colour
+                        painter.setPen(Qt.black)  # default colour
 
                     # first point is a move
                     path.moveTo(self.pr(point[0], point[1]), self.pt(point[0], point[1]))
