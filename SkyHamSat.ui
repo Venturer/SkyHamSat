@@ -58,12 +58,19 @@
       <item>
        <widget class="QLabel" name="label_9">
         <property name="text">
-         <string>Elevation (m)</string>
+         <string>Elevation (m):</string>
         </property>
        </widget>
       </item>
       <item>
        <widget class="QLineEdit" name="my_elevation"/>
+      </item>
+      <item>
+       <widget class="QPushButton" name="pushButtonSetLocation">
+        <property name="text">
+         <string>Set Location</string>
+        </property>
+       </widget>
       </item>
       <item>
        <widget class="QPushButton" name="pushButtonDownloadSatInfo">

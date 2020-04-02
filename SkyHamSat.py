@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-"""SatPredicter.
+"""SkyHamSat.
 
     A Qt5 based program for Python3.
     A text edit and graphs are used for output. The
@@ -58,6 +58,7 @@ LOCALTIME = False
 
 ts = load.timescale()
 
+
 class MainApp(QMainWindow):
     """Main Qt5 Window."""
 
@@ -90,7 +91,7 @@ class MainApp(QMainWindow):
         # FIXME fix multiple entries in satslist.csv for same satellite_name
         # TODO add save number of passes as settings
         # TODO add text splitter position as settings
-        # TODO save changed location information
+        # TODO change graphs to next pass at end of previous pass
 
         # call inherited init
         super().__init__()
@@ -162,7 +163,7 @@ class MainApp(QMainWindow):
     @pyqtSlot(int)
     @pyqtSlot(str)
     def on_checkboxes_changed(self, *args):
-        """Actions when any of the checkboxes are changed."""
+        """Actions when any of the checkboxes/mode combo are changed."""
 
         self.fill_select_satellite_combo()
         self.fill_combo_box_with_list_of_modes()
@@ -216,6 +217,22 @@ class MainApp(QMainWindow):
         self.display_upcoming_passes()
 
     @pyqtSlot()
+    def on_pushButtonSetLocation_clicked(self):
+        """Slot triggered when the button is clicked.
+            """
+        global home
+
+        self.settings.setValue('mylatitude', self.my_latitude.text())
+        self.settings.setValue('mylongitude', self.my_longitude.text())
+        self.settings.setValue('myelevation', float(self.my_elevation.text()))
+
+        home = Topos(self.my_latitude.text(),
+                     self.my_longitude.text(),
+                     elevation_m=float(self.my_elevation.text()))
+
+        self.on_checkboxes_changed(0)
+
+    @pyqtSlot()
     def on_pushButtonPlotPass_clicked(self):
         """Slot triggered when the button is clicked.
 
@@ -231,7 +248,7 @@ class MainApp(QMainWindow):
     def on_pushButtonDownloadSatInfo_clicked(self):
         """Slot triggered when the button is clicked.
 
-            Download satellite info and save as statslist.csv
+            Download satellite info and save as satslist.csv
             Filter on active satellites from the file
             create a list of dicts
             Create satslist.json file
@@ -300,12 +317,12 @@ class MainApp(QMainWindow):
                                 QMessageBox.Ok)
 
     @pyqtSlot(int)
+    @pyqtSlot()
     def on_comboBoxSelectSatelllite_currentIndexChanged(self, *args):
         """Re-draw graphs on change of current index."""
 
         self.draw_next_passes_for_selected_satellite()
         self.selected_satellite_info()
-        pass
 
     def get_satellite_tles(self):
         """Get all the amateur satellite TLEs from celestrak.
@@ -498,7 +515,7 @@ class MainApp(QMainWindow):
         # in satellite_body_objects, i.e. where we have both TLEs and satellite_name info
         self.satellites = {s: self.satellite_data[s] for s in self.satellite_data
                            if (self.satellite_data[s]['Number'] in str(numbers.keys())
-                               and self.satellite_data[s]['Status'] != 'inactive')}
+                               and self.satellite_data[s]['Status'] in ['active', 'operational'])}
 
         # Fill the modes and Select Satellite combo boxes
         self.fill_combo_box_with_list_of_modes()
@@ -518,8 +535,9 @@ class MainApp(QMainWindow):
     def on_auto_update_timer(self):
         """Method called by the auto_update_timer.
 
-            Updates the graphs at regular intervals.
-            display_on_upcoming_passes doppler shifts.
+            Updates the coming_passes graph, current_pass graph and Doppler shifts at regular intervals.
+            `draw_upcoming_passes` and `draw_current_pass_and_doppler` methods are not called
+            on the same update to improve program responsiveness.
             """
 
         if (self.toggle % 10) == 0:  # Every 10 timer calls
@@ -536,27 +554,50 @@ class MainApp(QMainWindow):
         dynamic_lines = []
         selected_satellite = self.comboBoxSelectSatelllite.itemData(
             self.comboBoxSelectSatelllite.currentIndex())
-        # if selected_satellite is None:
-        #     return  # Will be None if combo box is cleared
-        for v in self.satellites_filtered_by_check_boxes():
-            sat = v['Satellite']
-            calc_time = ts.now().tt
-            alt, az, slant_velocity = self.get_alt_azimuth(calc_time, sat)
 
-            if alt.degrees > 0:
-                up_positions.append((alt.degrees, az.radians, 'grey', 8, f' {sat}'))  # append tuple
-                if sat == selected_satellite:
+        if selected_satellite is None:
+            return  # Will be None if combo box is cleared
+
+        for v in self.satellites_filtered_by_check_boxes():
+            satellite_name = v['Satellite']
+            calc_time = ts.now().tt
+            alt, az, slant_velocity = self.get_alt_azimuth(calc_time, satellite_name)
+
+            if satellite_name == selected_satellite:
+
+                pass_list = self.get_next_passes(satellite_name, 1)
+
+                for inx, t in enumerate(self.current_pass_graph.texts[:]):
+                    if t[0].endswith('mins'):
+                        del self.current_pass_graph.texts[inx]  # delete it from the list
+
+                if len(pass_list) == 3:
+                    time_from_now = (pass_list[0][0].tt - calc_time) * 24 * 60
+                    self.current_pass_graph.add_text_by_proportion(f' {satellite_name} rises in {time_from_now:0.1f} mins',
+                                                                   0, 0.02, 'blue')
+                    end_of_pass = False
+
+                if len(pass_list) in (1, 2):
+                    time_from_now = (pass_list[len(pass_list) - 1][0].tt - calc_time) * 24 * 60
+                    self.current_pass_graph.add_text_by_proportion(f' {satellite_name} sets in {time_from_now:0.1f} mins',
+                                                                   0, 0.02, 'darkgreen')
+                    end_of_pass = time_from_now <= 0.06
+
+            if alt.degrees >= 0:
+
+                up_positions.append((alt.degrees, az.radians, 'grey', 8, f' {satellite_name}'))  # append tuple
+                if satellite_name == selected_satellite:
+
                     doppler_shift_2m = -slant_velocity / 300000 * 145.9e6
                     doppler_shift_100 = -slant_velocity / 300000 * 100e6  # 145.9e6
 
-                    # print(slant_velocity, doppler_shift_100)
                     doppler_shift_70cm = -slant_velocity / 300000 * 436.5e6
 
                     selected_doppler_shift = -slant_velocity / 300000 * float(
                         self.selected_frequencies.currentText()) * 1e6
 
                     up_positions.append((alt.degrees, az.radians, 'black', 8,
-                                         f' {sat}: 2: {doppler_shift_2m:+0.0f}, 70: {doppler_shift_70cm:+0.0f} Hz '))
+                                         f' {satellite_name}: 2: {doppler_shift_2m:+0.0f}, 70: {doppler_shift_70cm:+0.0f} Hz '))
 
                     self.doppler.setText(f'{selected_doppler_shift:+0.0f} Hz')
         if self.lines:
@@ -566,6 +607,10 @@ class MainApp(QMainWindow):
 
             self.current_pass_graph.draw(*dynamic_lines)
         self.update()
+
+        if end_of_pass:
+            self.redraw_timer = QTimer()
+            self.redraw_timer.singleShot(10000, self.on_comboBoxSelectSatelllite_currentIndexChanged)
 
     @pyqtSlot()
     def on_clock_update(self):
@@ -599,25 +644,27 @@ class MainApp(QMainWindow):
 
         calc_time = rise_time.tt
 
-        while calc_time < setting_time.tt:
+        while True:  # calc_time < setting_time.tt:
             text_field = ''
 
             alt, az, velocity = self.get_alt_azimuth(calc_time, sat)
 
             # See if point should have a text field
-            calendar = ts.tt_jd(calc_time).tt_calendar()
+            iso = ts.tt_jd(calc_time).utc_iso()[11:-1]
             if text_every_point and (point_number % text_every_point == 0):
-                text_field = f' {calendar[3]:02d}:{calendar[4]:02d}:{calendar[5]:02.0f}'
+                text_field = f' {iso}'
 
             pass_line.append([alt.degrees, az.radians, colour, 4, text_field])
 
-            last_time = calc_time
             calc_time += JULIAN_SEC * interval
+
+            if calc_time > setting_time.tt:
+                break
 
             point_number += 1
 
         if text_every_point and pass_line:  # pass_line must not be empty
-            pass_line[-1][4] = f' {calendar[3]:02d}:{calendar[4]:02d}:{calendar[5]:02.0f}'  # Last point has text field
+            pass_line[-1][4] = f' {setting_time.utc_iso()[11:-1]}'  # Last point has text field
 
         return pass_line
 
@@ -757,7 +804,7 @@ class MainApp(QMainWindow):
         if satellite_name is None:
             return  # Will be None if combo box is cleared
 
-        self.display_on_selected_satellite_passes(f'Next 10 passes for satellite: {satellite_name}', colour='purple')
+        self.display_on_selected_satellite_passes(f'Next passes for satellite: {satellite_name}', colour='purple')
         self.display_on_selected_satellite_passes()
 
         transit_list = []
@@ -822,7 +869,10 @@ class MainApp(QMainWindow):
         transit_list = self.transit_list_sorted_by_time()
 
         for transit in transit_list:
-            self.display_on_upcoming_passes(f'Pass for satellite: {transit[3]}', colour='purple')
+            if transit[0] or transit[1] or transit[2]:
+                self.display_on_upcoming_passes()
+                self.display_on_upcoming_passes(f'Pass for satellite: {transit[3]}', colour='purple')
+
             if transit[0]:
                 rise_time = ts.tt_jd(transit[0]).utc_iso(' ')
                 alt, az, velocity = self.get_alt_azimuth(transit[0], transit[3])
@@ -837,8 +887,6 @@ class MainApp(QMainWindow):
                 set_time = ts.tt_jd(transit[2]).utc_iso(' ')
                 alt, az, velocity = self.get_alt_azimuth(transit[2], transit[3])
                 self.display_on_upcoming_passes(f'Set     : {set_time} az: {az.degrees:5.1f}°', colour='darkgreen')
-
-            self.display_on_upcoming_passes()
 
         self.scroll_upcoming_passes_display(0)
 
@@ -916,7 +964,7 @@ class MainApp(QMainWindow):
                                                text_pixel_size=22,
                                                background=QColor(240, 250, 255))
 
-            self.upcoming_passes_graph.set_grid_label_format('{:0.0f}h', '{:0.0f}°')
+            self.upcoming_passes_graph.set_grid_label_format('{:0.1f}', '{:0.0f}°')
 
             self.upcoming_passes_graph.add_text('          Upcoming Satellites', 0, 95, 'purple', True)
             self.upcoming_passes_graph.add_text_by_proportion('Hours from now', 0.71, 0.02, 'blue', True)

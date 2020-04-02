@@ -445,7 +445,7 @@ class Graph(object):
             The updated Graph is displayed after the next call
             to the draw method.
 
-            Raises exception ValueError if the text, x, y, colour
+            Raises exception ValueError if the text, x_proportion, y_proportion, colour
             combination is not found."""
 
         self.remove_text(text,
