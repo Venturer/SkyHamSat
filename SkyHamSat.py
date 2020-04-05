@@ -30,6 +30,7 @@ import json
 import math
 import sys
 import urllib.request
+from datetime import timedelta
 from decimal import Decimal, localcontext, ROUND_DOWN
 from pprint import pprint
 
@@ -323,6 +324,7 @@ class MainApp(QMainWindow):
 
         self.draw_next_passes_for_selected_satellite()
         self.selected_satellite_info()
+        self.doppler.setText('')
 
     def get_satellite_tles(self):
         """Get all the amateur satellite TLEs from celestrak.
@@ -549,6 +551,7 @@ class MainApp(QMainWindow):
         self.toggle += 1
 
     def draw_current_pass_and_doppler(self):
+        """Updates the current_pass graph and Doppler shifts."""
 
         up_positions = []
         dynamic_lines = []
@@ -568,19 +571,21 @@ class MainApp(QMainWindow):
                 pass_list = self.get_next_passes(satellite_name, 1)
 
                 for inx, t in enumerate(self.current_pass_graph.texts[:]):
-                    if t[0].endswith('mins'):
+                    if t[0].endswith('from now'):
                         del self.current_pass_graph.texts[inx]  # delete it from the list
 
                 if len(pass_list) == 3:
                     time_from_now = (pass_list[0][0].tt - calc_time) * 24 * 60
-                    self.current_pass_graph.add_text_by_proportion(f' {satellite_name} rises in {time_from_now:0.1f} mins',
-                                                                   0, 0.02, 'blue')
+                    time_from_now_str = str(timedelta(minutes=time_from_now))[:-7]
+                    self.current_pass_graph.add_text_by_proportion(
+                        f' {satellite_name} rises in {time_from_now_str} from now', 0, 0.02, 'blue')
                     end_of_pass = False
 
                 if len(pass_list) in (1, 2):
                     time_from_now = (pass_list[len(pass_list) - 1][0].tt - calc_time) * 24 * 60
-                    self.current_pass_graph.add_text_by_proportion(f' {satellite_name} sets in {time_from_now:0.1f} mins',
-                                                                   0, 0.02, 'darkgreen')
+                    time_from_now_str = str(timedelta(minutes=time_from_now))[:-7]
+                    self.current_pass_graph.add_text_by_proportion(
+                        f' {satellite_name} sets in {time_from_now_str} from now', 0, 0.02, 'darkgreen')
                     end_of_pass = time_from_now <= 0.06
 
             if alt.degrees >= 0:
@@ -589,17 +594,18 @@ class MainApp(QMainWindow):
                 if satellite_name == selected_satellite:
 
                     doppler_shift_2m = -slant_velocity / 300000 * 145.9e6
-                    doppler_shift_100 = -slant_velocity / 300000 * 100e6  # 145.9e6
+                    # doppler_shift_100 = -slant_velocity / 300000 * 100e6  # 145.9e6
 
                     doppler_shift_70cm = -slant_velocity / 300000 * 436.5e6
 
-                    selected_doppler_shift = -slant_velocity / 300000 * float(
+                    selected_doppler_shift = -slant_velocity / 300e3 * float(
                         self.selected_frequencies.currentText()) * 1e6
 
                     up_positions.append((alt.degrees, az.radians, 'black', 8,
-                                         f' {satellite_name}: 2: {doppler_shift_2m:+0.0f}, 70: {doppler_shift_70cm:+0.0f} Hz '))
+                                         f' {satellite_name}'))
+                                         # f' {satellite_name}: 2: {doppler_shift_2m:+0.0f}, 70: {doppler_shift_70cm:+0.0f} Hz '))
 
-                    self.doppler.setText(f'{selected_doppler_shift:+0.0f} Hz')
+                    self.doppler.setText(f'{selected_doppler_shift:+0.0f}')
         if self.lines:
             dynamic_lines.append(self.lines[0])
         for up in up_positions:
@@ -644,7 +650,7 @@ class MainApp(QMainWindow):
 
         calc_time = rise_time.tt
 
-        while True:  # calc_time < setting_time.tt:
+        while True:
             text_field = ''
 
             alt, az, velocity = self.get_alt_azimuth(calc_time, sat)
